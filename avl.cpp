@@ -43,70 +43,50 @@ void updateHeight(Node* node) {
     if (node){
         node->height = 1 + std::max(nodeHeight(node->left), nodeHeight(node->right));
     }
-} // TODO
+} // DONE
 // Set height to 1 + max(child heights). Node is non-null; child heights are correct.
 
 int balanceFactor(const Node* node) {
     (void)node;
-    if (!node){
+    if (node==nullptr){
         return 0;
     }
     //printf("oh no");
     return nodeHeight(node->left)-nodeHeight(node->right);
-} // TODO// Return left height minus right height, or 0 for nullptr.
+} // DONE// Return left height minus right height, or 0 for nullptr.
 
 
 Node* rotateLeft(Node* root) {
-    printf("rotating left");
-    if (!(root->right->right)){ //if there is no right root but still unbalanced...
-        //swap root left and root.
-        Node* temp = root->right;
-        root->right = root->right->left;
-        root->right->right = temp;
-        temp->left = nullptr;
-    }
-    if (root->right){// accounting for a case where there is already a right side
-        Node* temp = root; //save a pointer to the current root
-        root=root->right; //now change that root, shift to right
-        root->left = temp; //make the left pointer of new root the old temp
-        temp->right = nullptr; // now cut off the old's link to the new parent root
-    }
-    rebalance(root); //rebalance everything
+    Node* temp = root;
+    Node* temp2 = root->right->left;
+    root = root->right;
+    root->left = temp;
+    temp->right = temp2;
+    updateHeight(temp);
+    updateHeight(temp2);
+    updateHeight(root);
     return root;
-} // TODO
-/*
-    1
-      \                 2
-        3    ->        / \
-       /              1   3
-      2        
-*/
+} // DONE
 
 Node* rotateRight(Node* root) {
-    //printf("rotating right");
-    if (!(root->left->left)){ //if there is no left root but still unbalanced...
-        //swap root left and root.
-        Node* temp = root->left;
-        root = root->left->right;
-        root->left->left = temp;
-        temp->right = nullptr;
-    }
-    if (root->left->left){// accounting for a case where there is already a right side
-        Node* temp = root; //save a pointer to the current root
-        root=root->left; //now change that root, shift to right
-        root->right = temp; //make the left pointer of new root the old temp
-        temp->left = nullptr; // now cut off the old's link to the new parent root
-    }
-    rebalance(root); //rebalance everything
+    Node* temp = root;
+    Node* temp2 = root->left->right;
+    root = root->left;
+    root->right = temp;
+    temp->left = temp2;
+    updateHeight(temp);
+    updateHeight(temp2);
+    updateHeight(root);
     return root;
-} // TODO
+}
+//DONE
 
 Node* rebalance(Node* root) { //has issues
     //printf("rebalancing");
-    //updateHeight(root);
+    updateHeight(root);
     //does balanceFactor have issues????
     if (balanceFactor(root) > 1){
-        //printf("balance factor too big"); //test 3 bfactor too big
+        //printf("balance factor too big"); 
         if (balanceFactor(root->left) < 0){
             root->left = rotateLeft(root->left);
         }
@@ -121,10 +101,11 @@ Node* rebalance(Node* root) { //has issues
     }
 
     return root;
-} // TODO
+} // DONE
 
 Node* insertNode(Node* root, Node* newNode) {
     (void)newNode;
+    //printf("inserting");
     if (root==nullptr){
         //printf("no root");
         root=newNode;
@@ -146,15 +127,45 @@ Node* insertNode(Node* root, Node* newNode) {
                 root->left = insertNode(root->left, newNode);
             }
         }
+        updateHeight(root);
         return rebalance(root);
     // printf("done "); test 3 don't worry bout this insert runs fine
     }
-    return root; // TODO
+     // DONE
 }
 
 Node* deleteNode(Node* root, int departure) {
     (void)departure;
-    return root; // TODO
+    if (root == nullptr){
+        return nullptr;
+    }
+    //find node now
+    if (root->data.departure == departure){
+        //delete now
+        if ((root->left==nullptr) || (root->right==nullptr)){
+            Node* successor = nullptr; //1 or 0 children
+            if (root->left){
+                successor = root->left;
+            } else if (root->right){
+            successor = root->right;
+            }
+        delete root;
+        return successor;
+        }// 2 children
+        Node* min = root->right; //find the min to replace the key
+        while(min->left != nullptr){
+            min = min->left;
+        }
+        root->data = min->data;
+        root->right = deleteNode(root->right, min->data.departure);
+
+    } else if (root->data.departure < departure){
+        root->right = deleteNode(root->right, departure); //it's bigger
+    } else if (root->data.departure > departure) {
+        root->left = deleteNode(root->left, departure); //it's smaller
+    }
+    return rebalance(root);
+// TODO
 }
 
 const Node* findNode(const Node* root, int departure) {
@@ -171,13 +182,69 @@ const Node* findNode(const Node* root, int departure) {
         return findNode(root->left, departure);
     }
     return nullptr;
-     // TODO
+     // DONE
 }
 
 const Node* earliestNode(const Node* root, int departure) {
     (void)root;
-    (void)departure;
-    return nullptr; // TODO
+    (void)departure; //at or after...
+    if (departure == root->data.departure){ //this is AT (base case)
+        return root; 
+    } 
+    std::queue<Node*> paragon;
+    if (departure > root->data.departure) { //queue time?/???
+        //look thru root->right
+        Node* earliest = nullptr; //nothing is closest and after the time so far
+        paragon.push(root->right); 
+        while (paragon.size() > 0){ //this loop looks thru all nodes for a time closest
+            Node* current = paragon.front();
+            paragon.pop();
+            if (current->left){
+                paragon.push(current->left);
+            }
+            if (current->right){
+                paragon.push(current->right);
+            } //added its children to the queue here
+            //now comparison time.
+            if (current->data.departure >= departure){ //if we find a value AFTER departure:
+                if(earliest==nullptr){
+                    earliest = current;
+                }else if (earliest->data.departure > current->data.departure){ 
+                    earliest = current; //if current is smaller than current earliest
+                }// then it's closer to departure so. earlier.
+            } 
+        }// loop done when there are no more values to check thru.
+        return earliest;
+        
+    } else if (departure < root->data.departure){ //if departure is earlier than the root...
+//look thru root->right
+        Node* earliest = nullptr; //should be root if empyt at end
+        paragon.push(root->left); 
+        while (paragon.size() > 0){ //this loop looks thru all nodes for a time closest
+            Node* current = paragon.front();
+            paragon.pop();
+            if (current->left){
+                paragon.push(current->left);
+            }
+            if (current->right){
+                paragon.push(current->right);
+            } //added its children to the queue here
+            //now comparison time.
+            if (current->data.departure >= departure){ //if we find a value AFTER departure:
+                if(earliest==nullptr){
+                    earliest = current;
+                }else if (earliest->data.departure > current->data.departure){ 
+                    earliest = current; //if current is smaller than current earliest
+                }// then it's closer to departure so. earlier.
+            } 
+        }// loop done when there are no more values to check thru.     
+        if (earliest == nullptr){
+            return root;
+        }   else {
+            return earliest;
+        }
+    }
+    return nullptr; // DONE
 }
 
 void findRange(const Node* root, int start, int end,
@@ -186,5 +253,24 @@ void findRange(const Node* root, int start, int end,
     (void)start;
     (void)end;
     (void)results;
-    (void)count; // TODO
+    (void)count; //use an in-order search, l, node, r
+    if (root == nullptr){
+        return;
+    }
+    findRange(root->left, start, end, results, count);
+    if ((root->data.departure >= start) && (root->data.departure <= end)){
+        results[count] = root;
+        count++;
+    }
+    findRange(root->right, start, end, results, count);
 }
+    
+
+    //left tree call
+    //center node call
+    //right tree call mabye append is PART of the call? and counter at the end
+
+    //root = earliestNode(root, start);
+    // TODO
+// Collect node pointers with departure in [start, end], in time order, and update count.
+// If start > end, add nothing; if start == end, collect only an exact match.
